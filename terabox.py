@@ -25,24 +25,31 @@ async def get_download_link(client, message):
     terabox_url = message.text.strip()
 
     try:
-        # Step 1: Access the initial page and fetch redirection URL
+        # Step 1: Send the initial request
         response = requests.get(terabox_url, allow_redirects=False)
-        if "Location" in response.headers:
+        print("Initial response headers:", response.headers)
+
+        # Check for redirection
+        if response.status_code in (301, 302) and "Location" in response.headers:
             redirect_url = response.headers["Location"]
-            
-            # Step 2: Follow the redirect to get the final video URL
+            print("Redirect URL:", redirect_url)
+
+            # Step 2: Follow the redirect
             final_response = requests.get(redirect_url, allow_redirects=True)
-            
-            # Log or inspect the content
             print("Final URL:", final_response.url)
-            
+
+            # Step 3: Extract the download link if available
             if final_response.ok and "filename" in final_response.url:
                 await message.reply(f"Here is your download link:\n{final_response.url}")
             else:
-                await message.reply("Failed to extract the download link. Please check the URL.")
+                await message.reply("Failed to extract the download link. The link might not be a valid Terabox link.")
         else:
             await message.reply("Unable to fetch redirection link. Please ensure the URL is valid.")
+    except requests.exceptions.RequestException as e:
+        print("HTTP Request Exception:", e)
+        await message.reply(f"An HTTP error occurred: {e}")
     except Exception as e:
+        print("General Exception:", e)
         await message.reply(f"An error occurred: {e}")
 
 if __name__ == "__main__":
