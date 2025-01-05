@@ -21,23 +21,29 @@ async def start(client, message):
     await message.reply("Welcome to Terabox Downloader Bot! Send a Terabox link to download.")
 
 @app.on_message(filters.text)
-async def download_file(client, message):
-    terabox_link = message.text
+async def get_download_link(client, message):
+    terabox_url = message.text.strip()
 
     try:
-        # Interact with TeraDownloader or Terabox
-        response = requests.post(TERABOX_API_URL, json={"url": terabox_link})
-        response.raise_for_status()
-        data = response.json()
-
-        if "downloadLink" in data:
-            download_link = data["downloadLink"]
-            await message.reply(f"Here is your download link:\n{download_link}")
+        # Step 1: Access the initial page and fetch redirection URL
+        response = requests.get(terabox_url, allow_redirects=False)
+        if "Location" in response.headers:
+            redirect_url = response.headers["Location"]
+            
+            # Step 2: Follow the redirect to get the final video URL
+            final_response = requests.get(redirect_url, allow_redirects=True)
+            
+            # Log or inspect the content
+            print("Final URL:", final_response.url)
+            
+            if final_response.ok and "filename" in final_response.url:
+                await message.reply(f"Here is your download link:\n{final_response.url}")
+            else:
+                await message.reply("Failed to extract the download link. Please check the URL.")
         else:
-            await message.reply("Failed to retrieve the download link. Please check the URL.")
+            await message.reply("Unable to fetch redirection link. Please ensure the URL is valid.")
     except Exception as e:
         await message.reply(f"An error occurred: {e}")
 
 if __name__ == "__main__":
     app.run()
-
